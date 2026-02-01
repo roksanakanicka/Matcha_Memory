@@ -6,9 +6,10 @@ public class MemoryGameManager : MonoBehaviour
     public static MemoryGameManager instance;
 
 
-    public MatchEffectPlayer matchEffectPrefab; // PRZEPISZ TUTAJ PREFAB Z FOLDERU ASSETS
+    public MatchEffectPlayer matchEffectPrefab;
     public TeaTemperature teaTimer;
-    public RectTransform gridContainer;        // PRZECIĄGNIJ TUTAJ PANEL 'CardGrid'
+    public RectTransform gridContainer;
+    public Camera uiCamera; // <--- TEJ LINII BRAKOWAŁO (Naprawia błąd CS0103)
 
     [Header("Ustawienia logiki")]
     public float baseReheatAmount = 10f;
@@ -69,39 +70,45 @@ public class MemoryGameManager : MonoBehaviour
 
     void HandleMatch()
     {
-        //... (poprzedni kod dźwięku i temperatury)...
+        comboCount++;
+        if (AudioManager.instance != null) AudioManager.instance.PlayMatch();
 
-        if (matchEffectPrefab != null && gridContainer != null)
+        float bonus = 1f + (comboCount / 5f);
+        if (teaTimer != null) teaTimer.ReheatTea(baseReheatAmount * bonus);
+
+        if (matchEffectPrefab != null && gridContainer != null && uiCamera != null)
         {
-            Transform canvasTransform = gridContainer.parent;
+            // 1. Pobieramy RectTransform Canvasa (rodzica siatki)
+            RectTransform canvasRect = gridContainer.parent as RectTransform;
 
-            // Spawnowanie efektów
-            GameObject eff1 = Instantiate(matchEffectPrefab.gameObject, canvasTransform);
-            GameObject eff2 = Instantiate(matchEffectPrefab.gameObject, canvasTransform);
+            // 2. Tworzymy kopie efektów (Prefab VFX) jako dzieci Canvasa
+            GameObject eff1 = Instantiate(matchEffectPrefab.gameObject, canvasRect);
+            GameObject eff2 = Instantiate(matchEffectPrefab.gameObject, canvasRect);
 
-            // KROK A: Ustawiamy pozycję globalną (World Position) na środek karty
-            eff1.transform.position = firstCard.transform.position;
-            eff2.transform.position = secondCard.transform.position;
+            // --- MATEMATYCZNE WYŚRODKOWANIE (RectTransformUtility) ---
+            // Przeliczamy pozycję karty na punkt lokalny na Canvasie
+            Vector2 localPoint1;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect,
+                uiCamera.WorldToScreenPoint(firstCard.transform.position), uiCamera, out localPoint1);
+            eff1.GetComponent<RectTransform>().anchoredPosition = localPoint1;
 
-            // KROK B: Jeśli efekt ma RectTransform, wymuszamy wyzerowanie pozycji lokalnej względem punktu zaczepienia
-            RectTransform rt1 = eff1.GetComponent<RectTransform>();
-            RectTransform rt2 = eff2.GetComponent<RectTransform>();
+            Vector2 localPoint2;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect,
+                uiCamera.WorldToScreenPoint(secondCard.transform.position), uiCamera, out localPoint2);
+            eff2.GetComponent<RectTransform>().anchoredPosition = localPoint2;
 
-            if (rt1 != null)
-            {
-                // To usuwa wszelkie "przesunięcia w prawo" zapisane w prefabie
-                rt1.anchoredPosition = canvasTransform.InverseTransformPoint(firstCard.transform.position);
-                // Alternatywnie, jeśli powyższe wydaje się skomplikowane, upewnij się po prostu, 
-                // że w prefabie Pos X i Pos Y są równe 0.
-            }
-
-            // KROK C: Ustawienie Z (żeby efekt był przed kartą)
-            eff1.transform.localPosition = new Vector3(eff1.transform.localPosition.x, eff1.transform.localPosition.y, -10f);
-            eff2.transform.localPosition = new Vector3(eff2.transform.localPosition.x, eff2.transform.localPosition.y, -10f);
+            // 3. Reset skali i przesunięcie Z (by liście były przed kartą)
+            eff1.transform.localScale = Vector3.one;
+            eff2.transform.localScale = Vector3.one;
+            eff1.transform.localPosition = new Vector3(eff1.transform.localPosition.x, eff1.transform.localPosition.y, -2f);
+            eff2.transform.localPosition = new Vector3(eff2.transform.localPosition.x, eff2.transform.localPosition.y, -2f);
 
             Destroy(eff1, 2f);
             Destroy(eff2, 2f);
         }
+
+        firstCard.GetComponent<UnityEngine.UI.Button>().interactable = false;
+        secondCard.GetComponent<UnityEngine.UI.Button>().interactable = false;
     }
 
     void HandleMismatch()

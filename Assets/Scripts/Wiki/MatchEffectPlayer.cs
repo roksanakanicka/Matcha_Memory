@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class MatchEffectPlayer : MonoBehaviour
 {
@@ -9,8 +7,11 @@ public class MatchEffectPlayer : MonoBehaviour
 
     public void PlayEffect(Vector3 position)
     {
+        // Przesuwamy cały obiekt w miejsce karty
         transform.position = position;
-        leafSystem.Play();
-        steamSystem.Play();
+
+        // Odpalamy oba systemy cząsteczek
+        if (leafSystem != null) leafSystem.Play();
+        if (steamSystem != null) steamSystem.Play();
     }
 }

@@ -87,6 +87,7 @@ GameObject:
   - component: {fileID: 4875415486735296483}
   - component: {fileID: 4875415486735296509}
   - component: {fileID: 4875415486735296510}
+  - component: {fileID: 5401167685931603016}
   m_Layer: 5
   m_Name: Card_Base
   m_TagString: Untagged
@@ -169,6 +170,8 @@ MonoBehaviour:
   flipSpeed: 5
   cardFront: {fileID: 4875415485618636675}
   cardBack: {fileID: 4875415486956340948}
+  isFlipping: 0
+  faceUp: 0
 --- !u!114 &4875415486735296510
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -213,7 +216,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 4875415486735296509}
-        m_MethodName: StartFlip
+        m_MethodName: OnCardButtonClick
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -223,6 +226,19 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+--- !u!114 &5401167685931603016
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4875415486735296481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ca667f0dbbfa3d42a14d93790a2707a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cardID: 0
 --- !u!1 &4875415486956340948
 GameObject:
   m_ObjectHideFlags: 0

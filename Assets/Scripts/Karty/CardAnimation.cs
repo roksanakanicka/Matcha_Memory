@@ -1,88 +1,91 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems; // Wymagane do wykrywania myszki
+using UnityEngine.EventSystems;
+using System.Collections;
 
 public class CardAnimation : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
-
+    [Header("Ustawienia Hover")]
     public float scaleFactor = 1.1f;
     public float animationSpeed = 10f;
     private Vector3 originalScale;
     private Vector3 targetScale;
 
-
+    [Header("Ustawienia Flip")]
     public float flipSpeed = 5f;
-    public GameObject cardFront; // Ikona/przód karty
-    public GameObject cardBack;  // Tło/tył karty
-    private bool isFlipping = false;
-    private bool faceUp = false;
+    public GameObject cardFront;
+    public GameObject cardBack;
+
+    [HideInInspector]
+    public bool isFlipping = false;
+    [HideInInspector]
+    public bool faceUp = false;
 
     void Start()
     {
         originalScale = transform.localScale;
         targetScale = originalScale;
-        // Na starcie przód karty jest ukryty
-        cardFront.SetActive(false);
+
+        // Ustawienie początkowej widoczności stron
+        cardFront.SetActive(faceUp);
+        cardBack.SetActive(!faceUp);
     }
 
     void Update()
     {
-        // Gładkie skalowanie (Hover)
+        // Gładkie skalowanie przy najechaniu myszką (Hover)
         transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Time.deltaTime * animationSpeed);
     }
 
-    // Wykrywanie najechania myszką
-    public void OnPointerEnter(PointerEventData eventData)
+    // --- FUNKCJA 1: Wywoływana przez Button (UI) ---
+    public void OnCardButtonClick()
     {
-        targetScale = originalScale * scaleFactor;
-    }
-
-    public void OnPointerExit(PointerEventData eventData)
-    {
-        targetScale = originalScale;
-    }
-
-    // Funkcja do wywołania po kliknięciu
-    public void StartFlip()
-    {
+        // Sprawdzamy tylko, czy karta już się nie obraca
         if (!isFlipping)
         {
-            // Zawołanie Twojego managera dźwięku!
-            if (AudioManager.instance != null)
-            {
-                AudioManager.instance.PlayFlip();
-            }
+            // Karta mówi do Managera: "Hej, kliknięto mnie! Co mam robić?"
+            MemoryGameManager.instance.OnCardClicked(this);
+        }
+    }
 
+    // --- FUNKCJA 2: Wywoływana przez Manager (Logika) ---
+    public void ExecuteFlipAnimation()
+    {
+        // Manager dał zielone światło, więc odpalamy animację coroutiną
+        if (!isFlipping)
+        {
             StartCoroutine(FlipCoroutine());
         }
     }
 
-    private System.Collections.IEnumerator FlipCoroutine()
+    private IEnumerator FlipCoroutine()
     {
         isFlipping = true;
+
+        // Dźwięk przez AudioManagera (Singleton)
+        if (AudioManager.instance != null) AudioManager.instance.PlayFlip();
+
+        // KROK 1: Obrót do 90 stopni (bokiem do gracza)
         float time = 0f;
         Quaternion startRotation = transform.rotation;
-        Quaternion endRotation = transform.rotation * Quaternion.Euler(0, 90, 0);
+        Quaternion midRotation = transform.rotation * Quaternion.Euler(0, 90, 0);
 
-        // Pierwsza połowa obrotu (do 90 stopni)
         while (time < 1f)
         {
             time += Time.deltaTime * flipSpeed;
-            transform.rotation = Quaternion.Lerp(startRotation, endRotation, time);
-            yield return null;
+            transform.rotation = Quaternion.Lerp(startRotation, midRotation, time);
+            yield return null; // Czekaj na następną klatkę
         }
 
-        // Zamiana stron w połowie obrotu
+        // KROK 2: Zamiana grafiki w połowie obrotu
         faceUp = !faceUp;
         cardFront.SetActive(faceUp);
         cardBack.SetActive(!faceUp);
 
-        // Druga połowa obrotu (z powrotem do 0/180)
+        // KROK 3: Dokończenie obrotu o kolejne 90 stopni
         time = 0f;
         startRotation = transform.rotation;
-        endRotation = transform.rotation * Quaternion.Euler(0, -90, 0);
+        Quaternion endRotation = transform.rotation * Quaternion.Euler(0, -90, 0);
 
         while (time < 1f)
         {
@@ -93,4 +96,8 @@ public class CardAnimation : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
 
         isFlipping = false;
     }
+
+    // Obsługa Hover (najechanie myszką)
+    public void OnPointerEnter(PointerEventData eventData) => targetScale = originalScale * scaleFactor;
+    public void OnPointerExit(PointerEventData eventData) => targetScale = originalScale;
 }

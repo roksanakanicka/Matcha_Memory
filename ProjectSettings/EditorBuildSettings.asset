@@ -9,6 +9,9 @@ EditorBuildSettings:
     path: Assets/Scenes/MB.unity
     guid: 9ade655a85cd24341b896efbde259db9
   - enabled: 1
+    path: Assets/Scenes/WK.unity
+    guid: 90d91e22b6a940d46a9778bd363f63d9
+  - enabled: 0
     path: Assets/Scenes/Main.unity
     guid: 4c1a8f267f6e8ac459f87321b11bf27b
   m_configObjects: {}

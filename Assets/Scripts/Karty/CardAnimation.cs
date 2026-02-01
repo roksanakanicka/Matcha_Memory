@@ -48,7 +48,15 @@ public class CardAnimation : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
     public void StartFlip()
     {
         if (!isFlipping)
+        {
+            // Zawołanie Twojego managera dźwięku!
+            if (AudioManager.instance != null)
+            {
+                AudioManager.instance.PlayFlip();
+            }
+
             StartCoroutine(FlipCoroutine());
+        }
     }
 
     private System.Collections.IEnumerator FlipCoroutine()

@@ -1,34 +1,29 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
+using TMPro; // Wymagane dla TextMeshPro
 using System.Collections;
-using TMPro; // Wymagane do obsługi wyświetlania wyniku i combo
 
 public class MemoryGameManager : MonoBehaviour
 {
-    // Singleton - pozwala innym skryptom na łatwy dostęp do Managera
     public static MemoryGameManager instance;
 
 
-    public MatchEffectPlayer matchEffectPrefab; // Prefab VFX liści i pary
-    public TeaTemperature teaTimer;            // Skrypt termometru
-    public RectTransform gridContainer;        // Panel 'CardGrid'
-    public Camera uiCamera;                   // Twoja UICamera
+    public MatchEffectPlayer matchEffectPrefab;
+    public TeaTemperature teaTimer;
+    public RectTransform gridContainer;
+    public Camera uiCamera;
+    public TextMeshProUGUI scoreText;
+    public TextMeshProUGUI comboText;
 
+    [Header("Ustawienia")]
+    public int pointsPerMatch = 100;
+    public float baseReheatAmount = 10f;
+    public float waitTimeBeforeFlip = 0.8f;
 
-    public TextMeshProUGUI scoreText;         // Tekst wyniku
-    public TextMeshProUGUI comboText;         // Tekst combo
-
-    [Header("Ustawienia logiki i punktacji")]
-    public int pointsPerMatch = 100;          // Bazowe punkty za parę
-    public float baseReheatAmount = 10f;      // Ile stopni wraca do herbaty
-    public float waitTimeBeforeFlip = 0.8f;   // Czas na podejrzenie kart przed zakryciem
-
-    // Zmienne prywatne (stan gry)
     private CardAnimation firstCard;
     private CardAnimation secondCard;
     private bool isProcessing = false;
     private int currentScore = 0;
-
-    [HideInInspector]
     public int comboCount = 0;
 
     void Awake()
@@ -37,18 +32,10 @@ public class MemoryGameManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    void Start()
-    {
-        UpdateScoreUI();
-    }
-
     public void OnCardClicked(CardAnimation card)
     {
-        // Blokady zabezpieczające przed błędami i klikaniem odkrytych kart
-        if (isProcessing || card.faceUp || card == firstCard)
-            return;
+        if (isProcessing || card.faceUp || card == firstCard) return;
 
-        // Manager wydaje zgodę na animację obrotu
         card.ExecuteFlipAnimation();
 
         if (firstCard == null)
@@ -67,82 +54,81 @@ public class MemoryGameManager : MonoBehaviour
         isProcessing = true;
         yield return new WaitForSeconds(waitTimeBeforeFlip);
 
-        // Pobieramy ID z obu kart (identyfikacja pary)
         int id1 = firstCard.GetComponent<CardsData>().cardID;
         int id2 = secondCard.GetComponent<CardsData>().cardID;
 
-        if (id1 == id2)
-        {
-            HandleMatch();
-        }
-        else
-        {
-            HandleMismatch();
-        }
+        if (id1 == id2) HandleMatch();
+        else HandleMismatch();
 
-        // Resetowanie wyboru i odblokowanie klikania
         firstCard = null;
         secondCard = null;
         isProcessing = false;
     }
+
     void HandleMatch()
     {
         comboCount++;
-        if (AudioManager.instance != null) AudioManager.instance.PlayMatch();
+        currentScore += (int)(pointsPerMatch * (1f + (comboCount / 10f)));
 
-        float bonusMultiplier = 1f + (comboCount / 5f);
-        if (teaTimer != null) teaTimer.ReheatTea(baseReheatAmount * bonusMultiplier);
+        if (AudioManager.instance != null) AudioManager.instance.PlayMatch();
+        if (teaTimer != null) teaTimer.ReheatTea(baseReheatAmount * (1f + (comboCount / 5f)));
+
+        UpdateUI();
 
         if (matchEffectPrefab != null && gridContainer != null && uiCamera != null)
         {
-            RectTransform canvasRect = gridContainer.parent as RectTransform;
-            GameObject eff1 = Instantiate(matchEffectPrefab.gameObject, canvasRect);
-            GameObject eff2 = Instantiate(matchEffectPrefab.gameObject, canvasRect);
-
-            // Matematyczne centrowanie na kartach
-            Vector2 localPoint;
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect,
-                uiCamera.WorldToScreenPoint(firstCard.transform.position), uiCamera, out localPoint);
-            eff1.GetComponent<RectTransform>().anchoredPosition = localPoint;
-
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect,
-                uiCamera.WorldToScreenPoint(secondCard.transform.position), uiCamera, out localPoint);
-            eff2.GetComponent<RectTransform>().anchoredPosition = localPoint;
-
-            eff1.transform.localScale = Vector3.one;
-            eff2.transform.localScale = Vector3.one;
-
-            Destroy(eff1, 2f);
-            Destroy(eff2, 2f);
+            SpawnVFXAtCard(firstCard);
+            SpawnVFXAtCard(secondCard);
         }
 
-        // Dodajemy Coroutine, aby karty zniknęły po chwili
-        StartCoroutine(HideCardsAfterMatch(firstCard.gameObject, secondCard.gameObject));
+        // Ukrywanie kart bez przesuwania siatki
+        StartCoroutine(HideCardsWithCanvasGroup(firstCard, secondCard));
     }
 
-    private IEnumerator HideCardsAfterMatch(GameObject card1, GameObject card2)
+    private void SpawnVFXAtCard(CardAnimation card)
     {
-        // Czekamy pół sekundy, by gracz nacieszył się widokiem pary i VFX
-        yield return new WaitForSeconds(0.5f);
-        card1.SetActive(false); // Ukrywamy karty
-        card2.SetActive(false);
+        RectTransform canvasRect = gridContainer.parent as RectTransform;
+        GameObject eff = Instantiate(matchEffectPrefab.gameObject, canvasRect);
+
+        Vector2 localPoint;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect,
+            uiCamera.WorldToScreenPoint(card.transform.position), uiCamera, out localPoint);
+
+        eff.GetComponent<RectTransform>().anchoredPosition = localPoint;
+        eff.transform.localScale = Vector3.one;
+        eff.transform.localPosition = new Vector3(eff.transform.localPosition.x, eff.transform.localPosition.y, -2f);
+        Destroy(eff, 2f);
     }
-    
+
+    private IEnumerator HideCardsWithCanvasGroup(CardAnimation c1, CardAnimation c2)
+    {
+        yield return new WaitForSeconds(0.5f);
+        CanvasGroup cg1 = c1.GetComponent<CanvasGroup>();
+        CanvasGroup cg2 = c2.GetComponent<CanvasGroup>();
+
+        if (cg1 != null && cg2 != null)
+        {
+            cg1.alpha = 0; cg1.blocksRaycasts = false;
+            cg2.alpha = 0; cg2.blocksRaycasts = false;
+        }
+        else
+        {
+            c1.gameObject.SetActive(false);
+            c2.gameObject.SetActive(false);
+        }
+    }
 
     void HandleMismatch()
     {
-        comboCount = 0; // Reset combo przy pomyłce
+        comboCount = 0;
+        UpdateUI();
         firstCard.ExecuteFlipAnimation();
         secondCard.ExecuteFlipAnimation();
-        UpdateScoreUI();
     }
 
-    void UpdateScoreUI()
+    void UpdateUI()
     {
         if (scoreText != null) scoreText.text = "Wynik: " + currentScore;
-        if (comboText != null)
-        {
-            comboText.text = comboCount > 1 ? "Combo x" + comboCount : "";
-        }
+        if (comboText != null) comboText.text = comboCount > 1 ? "Combo x" + comboCount : "";
     }
 }

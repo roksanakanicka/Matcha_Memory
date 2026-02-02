@@ -14,4 +14,7 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/Main.unity
     guid: 4c1a8f267f6e8ac459f87321b11bf27b
+  - enabled: 1
+    path: Assets/Scenes/Oswiecenie.unity
+    guid: e985866cb5c936842b8ae831c424df95
   m_configObjects: {}

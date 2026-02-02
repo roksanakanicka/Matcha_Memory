@@ -1,12 +1,12 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
-using TMPro; // Wymagane dla TextMeshPro
+using TMPro;
 using System.Collections;
+using UnityEngine.SceneManagement; // DODANE: Wymagane do zmiany scen
 
 public class MemoryGameManager : MonoBehaviour
 {
     public static MemoryGameManager instance;
-
 
     public MatchEffectPlayer matchEffectPrefab;
     public TeaTemperature teaTimer;
@@ -26,10 +26,20 @@ public class MemoryGameManager : MonoBehaviour
     private int currentScore = 0;
     public int comboCount = 0;
 
+    // DODANE: Zmienna do liczenia zebranych par
+    private int pairsFound = 0;
+    private int totalPairs;
+
     void Awake()
     {
         if (instance == null) instance = this;
         else Destroy(gameObject);
+    }
+
+    void Start()
+    {
+        // Obliczamy ile par jest na stole (liczba dzieci w gridzie podzielona na 2)
+        totalPairs = gridContainer.childCount / 2;
     }
 
     public void OnCardClicked(CardAnimation card)
@@ -69,6 +79,7 @@ public class MemoryGameManager : MonoBehaviour
     {
         comboCount++;
         currentScore += (int)(pointsPerMatch * (1f + (comboCount / 10f)));
+        pairsFound++; // DODANE: Zwiększamy licznik zebranych par
 
         if (AudioManager.instance != null) AudioManager.instance.PlayMatch();
         if (teaTimer != null) teaTimer.ReheatTea(baseReheatAmount * (1f + (comboCount / 5f)));
@@ -81,8 +92,26 @@ public class MemoryGameManager : MonoBehaviour
             SpawnVFXAtCard(secondCard);
         }
 
-        // Ukrywanie kart bez przesuwania siatki
         StartCoroutine(HideCardsWithCanvasGroup(firstCard, secondCard));
+
+        // DODANE: Sprawdzanie czy to była ostatnia para
+        if (pairsFound >= totalPairs)
+        {
+            GameOver(true);
+        }
+    }
+
+    // DODANE: Funkcja kończąca grę i zapisująca wynik
+    void GameOver(bool win)
+    {
+        if (win)
+        {
+            // Zapisujemy ostateczny wynik do pamięci
+            PlayerPrefs.SetFloat("LastScore", currentScore);
+
+            // Przechodzimy do sceny rankingu
+            SceneManager.LoadScene("Oswiecenie");
+        }
     }
 
     private void SpawnVFXAtCard(CardAnimation card)

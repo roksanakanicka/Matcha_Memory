@@ -85,23 +85,14 @@ public class MemoryGameManager : MonoBehaviour
         secondCard = null;
         isProcessing = false;
     }
-
     void HandleMatch()
     {
         comboCount++;
-
-        // 1. Obliczanie punktacji: P = P_base * (1 + C/10)
-        int matchPoints = (int)(pointsPerMatch * (1f + (comboCount / 10f)));
-        currentScore += matchPoints;
-
-        // 2. Dźwięk sukcesu
         if (AudioManager.instance != null) AudioManager.instance.PlayMatch();
 
-        // 3. Podgrzewanie herbaty z bonusem za combo: Gain = Base * (1 + C/5)
         float bonusMultiplier = 1f + (comboCount / 5f);
         if (teaTimer != null) teaTimer.ReheatTea(baseReheatAmount * bonusMultiplier);
 
-        // 4. Centrowanie efektu VFX (RectTransformUtility)
         if (matchEffectPrefab != null && gridContainer != null && uiCamera != null)
         {
             RectTransform canvasRect = gridContainer.parent as RectTransform;
@@ -125,12 +116,18 @@ public class MemoryGameManager : MonoBehaviour
             Destroy(eff2, 2f);
         }
 
-        // 5. Wyłączenie kart z dalszej gry
-        firstCard.GetComponent<UnityEngine.UI.Button>().interactable = false;
-        secondCard.GetComponent<UnityEngine.UI.Button>().interactable = false;
-
-        UpdateScoreUI();
+        // Dodajemy Coroutine, aby karty zniknęły po chwili
+        StartCoroutine(HideCardsAfterMatch(firstCard.gameObject, secondCard.gameObject));
     }
+
+    private IEnumerator HideCardsAfterMatch(GameObject card1, GameObject card2)
+    {
+        // Czekamy pół sekundy, by gracz nacieszył się widokiem pary i VFX
+        yield return new WaitForSeconds(0.5f);
+        card1.SetActive(false); // Ukrywamy karty
+        card2.SetActive(false);
+    }
+    
 
     void HandleMismatch()
     {

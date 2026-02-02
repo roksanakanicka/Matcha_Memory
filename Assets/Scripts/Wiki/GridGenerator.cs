@@ -15,7 +15,7 @@ public class GridGenerator : MonoBehaviour
 
 
     public RectTransform gridContainer;
-    public List<GameObject> cardPrefabs;
+    public List<GameObject> cardPrefabs; // Tu przeciągnij swoje warianty (Matcha, Sencha itd.)
 
     void Start()
     {
@@ -24,7 +24,7 @@ public class GridGenerator : MonoBehaviour
 
     public void GenerateGrid()
     {
-        // 1. Konfiguracja GridLayoutGroup
+        // 1. Dynamiczna konfiguracja GridLayoutGroup
         GridLayoutGroup gridLayout = gridContainer.GetComponent<GridLayoutGroup>();
         if (gridLayout != null)
         {
@@ -32,38 +32,45 @@ public class GridGenerator : MonoBehaviour
             float newHeight = baseCellSize.y * cardScale;
             gridLayout.cellSize = new Vector2(newWidth, newHeight);
 
-            float horizontalSpacing = newWidth * spacingPercentage;
-            float verticalSpacing = newHeight * spacingPercentage;
-            gridLayout.spacing = new Vector2(horizontalSpacing, verticalSpacing);
-
+            gridLayout.spacing = new Vector2(newWidth * spacingPercentage, newHeight * spacingPercentage);
             gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             gridLayout.constraintCount = columns;
         }
 
-        // 2. Czyszczenie starych kart
+        // 2. Czyszczenie starej siatki
         foreach (Transform child in gridContainer) { Destroy(child.gameObject); }
 
-        // 3. Obliczanie par
+        // 3. Obliczanie całkowitej liczby kart
         int totalCards = rows * columns;
         if (totalCards % 2 != 0)
         {
-            Debug.LogError("Suma pól siatki musi być parzysta!");
+            Debug.LogError("Siatka musi mieć parzystą liczbę pól!");
             return;
         }
 
+        // --- NOWA LOGIKA BALANSU ---
+        // 4. Tasujemy listę dostępnych prefabów, aby za każdym razem gra wybierała inne herbaty
+        List<GameObject> availablePrefabs = new List<GameObject>(cardPrefabs);
+        for (int i = 0; i < availablePrefabs.Count; i++)
+        {
+            GameObject temp = availablePrefabs[i];
+            int randomIndex = Random.Range(i, availablePrefabs.Count);
+            availablePrefabs[i] = availablePrefabs[randomIndex];
+            availablePrefabs[randomIndex] = temp;
+        }
+
+        // 5. Tworzymy listę par na planszę
         List<GameObject> cardsToSpawn = new List<GameObject>();
         for (int i = 0; i < totalCards / 2; i++)
         {
-            // FIX: Pobieramy losowy indeks z dostępnych prefabów
-            int randomIndex = Random.Range(0, cardPrefabs.Count);
-            GameObject chosenPrefab = cardPrefabs[randomIndex];
-
-            // Dodajemy parę tego samego prefaba
-            cardsToSpawn.Add(chosenPrefab);
-            cardsToSpawn.Add(chosenPrefab);
+            // Używamy modulo (%), aby brać herbaty po kolei z przetasowanej listy
+            // Jeśli mamy więcej par niż rodzajów herbat, lista zapętli się i zacznie od nowa
+            GameObject chosen = availablePrefabs[i % availablePrefabs.Count];
+            cardsToSpawn.Add(chosen);
+            cardsToSpawn.Add(chosen);
         }
 
-        // 4. Tasowanie Fisher-Yates
+        // 6. Tasujemy finalną listę kart, aby pary nie leżały obok siebie (Algorytm Fisher-Yates)
         for (int i = 0; i < cardsToSpawn.Count; i++)
         {
             GameObject temp = cardsToSpawn[i];
@@ -72,9 +79,10 @@ public class GridGenerator : MonoBehaviour
             cardsToSpawn[randomIndex] = temp;
         }
 
-        // 5. Tworzenie kart na scenie
+        // 7. Instancjonowanie kart
         foreach (GameObject prefab in cardsToSpawn)
         {
+            // 'false' zapewnia, że karty nie zmienią skali przy dodawaniu do siatki
             Instantiate(prefab, gridContainer, false);
         }
     }

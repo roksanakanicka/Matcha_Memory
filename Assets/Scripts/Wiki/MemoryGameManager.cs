@@ -1,23 +1,32 @@
 ﻿using UnityEngine;
 using System.Collections;
+using TMPro; // Wymagane do obsługi wyświetlania wyniku i combo
 
 public class MemoryGameManager : MonoBehaviour
 {
+    // Singleton - pozwala innym skryptom na łatwy dostęp do Managera
     public static MemoryGameManager instance;
 
 
-    public MatchEffectPlayer matchEffectPrefab;
-    public TeaTemperature teaTimer;
-    public RectTransform gridContainer;
-    public Camera uiCamera; // <--- TEJ LINII BRAKOWAŁO (Naprawia błąd CS0103)
+    public MatchEffectPlayer matchEffectPrefab; // Prefab VFX liści i pary
+    public TeaTemperature teaTimer;            // Skrypt termometru
+    public RectTransform gridContainer;        // Panel 'CardGrid'
+    public Camera uiCamera;                   // Twoja UICamera
 
-    [Header("Ustawienia logiki")]
-    public float baseReheatAmount = 10f;
-    public float waitTimeBeforeFlip = 0.8f;
 
+    public TextMeshProUGUI scoreText;         // Tekst wyniku
+    public TextMeshProUGUI comboText;         // Tekst combo
+
+    [Header("Ustawienia logiki i punktacji")]
+    public int pointsPerMatch = 100;          // Bazowe punkty za parę
+    public float baseReheatAmount = 10f;      // Ile stopni wraca do herbaty
+    public float waitTimeBeforeFlip = 0.8f;   // Czas na podejrzenie kart przed zakryciem
+
+    // Zmienne prywatne (stan gry)
     private CardAnimation firstCard;
     private CardAnimation secondCard;
     private bool isProcessing = false;
+    private int currentScore = 0;
 
     [HideInInspector]
     public int comboCount = 0;
@@ -28,11 +37,18 @@ public class MemoryGameManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
+    void Start()
+    {
+        UpdateScoreUI();
+    }
+
     public void OnCardClicked(CardAnimation card)
     {
+        // Blokady zabezpieczające przed błędami i klikaniem odkrytych kart
         if (isProcessing || card.faceUp || card == firstCard)
             return;
 
+        // Manager wydaje zgodę na animację obrotu
         card.ExecuteFlipAnimation();
 
         if (firstCard == null)
@@ -51,6 +67,7 @@ public class MemoryGameManager : MonoBehaviour
         isProcessing = true;
         yield return new WaitForSeconds(waitTimeBeforeFlip);
 
+        // Pobieramy ID z obu kart (identyfikacja pary)
         int id1 = firstCard.GetComponent<CardsData>().cardID;
         int id2 = secondCard.GetComponent<CardsData>().cardID;
 
@@ -63,6 +80,7 @@ public class MemoryGameManager : MonoBehaviour
             HandleMismatch();
         }
 
+        // Resetowanie wyboru i odblokowanie klikania
         firstCard = null;
         secondCard = null;
         isProcessing = false;
@@ -71,50 +89,63 @@ public class MemoryGameManager : MonoBehaviour
     void HandleMatch()
     {
         comboCount++;
+
+        // 1. Obliczanie punktacji: P = P_base * (1 + C/10)
+        int matchPoints = (int)(pointsPerMatch * (1f + (comboCount / 10f)));
+        currentScore += matchPoints;
+
+        // 2. Dźwięk sukcesu
         if (AudioManager.instance != null) AudioManager.instance.PlayMatch();
 
-        float bonus = 1f + (comboCount / 5f);
-        if (teaTimer != null) teaTimer.ReheatTea(baseReheatAmount * bonus);
+        // 3. Podgrzewanie herbaty z bonusem za combo: Gain = Base * (1 + C/5)
+        float bonusMultiplier = 1f + (comboCount / 5f);
+        if (teaTimer != null) teaTimer.ReheatTea(baseReheatAmount * bonusMultiplier);
 
+        // 4. Centrowanie efektu VFX (RectTransformUtility)
         if (matchEffectPrefab != null && gridContainer != null && uiCamera != null)
         {
-            // 1. Pobieramy RectTransform Canvasa (rodzica siatki)
             RectTransform canvasRect = gridContainer.parent as RectTransform;
-
-            // 2. Tworzymy kopie efektów (Prefab VFX) jako dzieci Canvasa
             GameObject eff1 = Instantiate(matchEffectPrefab.gameObject, canvasRect);
             GameObject eff2 = Instantiate(matchEffectPrefab.gameObject, canvasRect);
 
-            // --- MATEMATYCZNE WYŚRODKOWANIE (RectTransformUtility) ---
-            // Przeliczamy pozycję karty na punkt lokalny na Canvasie
-            Vector2 localPoint1;
+            // Matematyczne centrowanie na kartach
+            Vector2 localPoint;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect,
-                uiCamera.WorldToScreenPoint(firstCard.transform.position), uiCamera, out localPoint1);
-            eff1.GetComponent<RectTransform>().anchoredPosition = localPoint1;
+                uiCamera.WorldToScreenPoint(firstCard.transform.position), uiCamera, out localPoint);
+            eff1.GetComponent<RectTransform>().anchoredPosition = localPoint;
 
-            Vector2 localPoint2;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect,
-                uiCamera.WorldToScreenPoint(secondCard.transform.position), uiCamera, out localPoint2);
-            eff2.GetComponent<RectTransform>().anchoredPosition = localPoint2;
+                uiCamera.WorldToScreenPoint(secondCard.transform.position), uiCamera, out localPoint);
+            eff2.GetComponent<RectTransform>().anchoredPosition = localPoint;
 
-            // 3. Reset skali i przesunięcie Z (by liście były przed kartą)
             eff1.transform.localScale = Vector3.one;
             eff2.transform.localScale = Vector3.one;
-            eff1.transform.localPosition = new Vector3(eff1.transform.localPosition.x, eff1.transform.localPosition.y, -2f);
-            eff2.transform.localPosition = new Vector3(eff2.transform.localPosition.x, eff2.transform.localPosition.y, -2f);
 
             Destroy(eff1, 2f);
             Destroy(eff2, 2f);
         }
 
+        // 5. Wyłączenie kart z dalszej gry
         firstCard.GetComponent<UnityEngine.UI.Button>().interactable = false;
         secondCard.GetComponent<UnityEngine.UI.Button>().interactable = false;
+
+        UpdateScoreUI();
     }
 
     void HandleMismatch()
     {
-        comboCount = 0;
+        comboCount = 0; // Reset combo przy pomyłce
         firstCard.ExecuteFlipAnimation();
         secondCard.ExecuteFlipAnimation();
+        UpdateScoreUI();
+    }
+
+    void UpdateScoreUI()
+    {
+        if (scoreText != null) scoreText.text = "Wynik: " + currentScore;
+        if (comboText != null)
+        {
+            comboText.text = comboCount > 1 ? "Combo x" + comboCount : "";
+        }
     }
 }

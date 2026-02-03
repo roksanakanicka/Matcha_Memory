@@ -1,7 +1,9 @@
 ﻿using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
+using UnityEngine.UI;    // Obsługuje typ Image
+using TMPro;             // Obsługuje teksty TextMeshPro
+using DG.Tweening;       // Obsługuje animacje DOTween
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 
 public class MemoryGameManager : MonoBehaviour
@@ -9,7 +11,7 @@ public class MemoryGameManager : MonoBehaviour
     public static MemoryGameManager instance;
 
 
-    public GridGenerator gridGenerator; // To pole MUSI być przypisane w Inspectorze!
+    public GridGenerator gridGenerator;
     public TeaTemperature teaTimer;
 
     [Header("Efekty i UI")]
@@ -17,6 +19,10 @@ public class MemoryGameManager : MonoBehaviour
     public Camera uiCamera;
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI comboText;
+
+    [Header("Efekt Combo Vignette")]
+    public Image comboVignette; // TU PRZECIĄGNIJ OBIEKT Z HIERARCHII
+    public float maxFlashAlpha = 0.7f;
 
     [Header("Ustawienia Arcade")]
     public int pointsPerMatch = 100;
@@ -29,7 +35,6 @@ public class MemoryGameManager : MonoBehaviour
     private bool isProcessing = false;
     private int currentScore = 0;
     public int comboCount = 0;
-
     private int pairsFound = 0;
     private int totalPairs;
     private int boardLevel = 1;
@@ -42,10 +47,9 @@ public class MemoryGameManager : MonoBehaviour
 
     void Start()
     {
-        // Sprawdzamy, czy przypisano generator w Inspectorze 
         if (gridGenerator == null)
         {
-            Debug.LogError("BŁĄD: Nie przypisano GridGeneratora do MemoryGameManager!");
+            Debug.LogError("BŁĄD: Nie przypisano GridGeneratora!");
             return;
         }
         StartCoroutine(PrepareNextBoard());
@@ -61,7 +65,6 @@ public class MemoryGameManager : MonoBehaviour
 
     void InitializeBoard()
     {
-        // Pobieramy liczbę par bezpośrednio z ustawień generatora [1]
         totalPairs = (gridGenerator.rows * gridGenerator.columns) / 2;
         pairsFound = 0;
 
@@ -78,10 +81,7 @@ public class MemoryGameManager : MonoBehaviour
 
         card.ExecuteFlipAnimation();
 
-        if (firstCard == null)
-        {
-            firstCard = card;
-        }
+        if (firstCard == null) firstCard = card;
         else
         {
             secondCard = card;
@@ -114,13 +114,12 @@ public class MemoryGameManager : MonoBehaviour
         if (AudioManager.instance != null) AudioManager.instance.PlayMatch();
         if (teaTimer != null) teaTimer.ReheatTea(baseReheatAmount * (1f + (comboCount / 5f)));
 
+        // WYWOŁANIE ROZBŁYSKU WINIETY
+        TriggerComboFlash();
+
         UpdateUI();
 
-        if (matchEffectPrefab != null)
-        {
-            SpawnVFXAtCard(firstCard);
-            SpawnVFXAtCard(secondCard);
-        }
+        if (matchEffectPrefab != null) SpawnVFXAtCard(firstCard);
 
         StartCoroutine(HideCardsWithCanvasGroup(firstCard, secondCard));
 
@@ -131,20 +130,29 @@ public class MemoryGameManager : MonoBehaviour
         }
     }
 
+    void TriggerComboFlash()
+    {
+        if (comboVignette == null) return;
+
+        // Im większe combo, tym silniejszy błysk (do limitu maxFlashAlpha)
+        float intensity = Mathf.Min(0.1f * comboCount, maxFlashAlpha);
+
+        comboVignette.DOKill(); // Zatrzymaj poprzedni błysk
+
+        // Animacja rozbłysku i powolnego zanikania 
+        Sequence s = DOTween.Sequence();
+        s.Append(comboVignette.DOFade(intensity, 0.05f));
+        s.Append(comboVignette.DOFade(0f, 0.4f));
+    }
+
     public IEnumerator PrepareNextBoard()
     {
         isProcessing = true;
         yield return new WaitForSeconds(1.0f);
-
-        // Wywołujemy generator (on sam wyczyści starą planszę) [1, 2]
         gridGenerator.GenerateGrid();
-
-        // Czekamy klatkę, aby obiekty zdążyły się zainicjalizować
         yield return new WaitForEndOfFrame();
-
         InitializeBoard();
         isProcessing = false;
-
         if (boardLevel > 1 && comboText != null) comboText.text = "POZIOM " + boardLevel;
     }
 
@@ -156,7 +164,6 @@ public class MemoryGameManager : MonoBehaviour
 
     private void SpawnVFXAtCard(CardAnimation card)
     {
-        // Korzystamy z gridContainer z generatora, aby nie dublować referencji
         RectTransform canvasRect = gridGenerator.gridContainer.parent as RectTransform;
         GameObject eff = Instantiate(matchEffectPrefab.gameObject, canvasRect);
         Vector2 localPoint;
@@ -176,11 +183,7 @@ public class MemoryGameManager : MonoBehaviour
             cg1.alpha = 0; cg1.blocksRaycasts = false;
             cg2.alpha = 0; cg2.blocksRaycasts = false;
         }
-        else
-        {
-            c1.gameObject.SetActive(false);
-            c2.gameObject.SetActive(false);
-        }
+        else { c1.gameObject.SetActive(false); c2.gameObject.SetActive(false); }
     }
 
     void HandleMismatch()

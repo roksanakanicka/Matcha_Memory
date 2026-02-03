@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public class RankingManager : MonoBehaviour
 {
     public TextMeshProUGUI rankingText;
-    private const int rankingSize = 30;
+    private const int rankingSize = 15;
 
     void Start()
     {

@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 public class TeaTemperature : MonoBehaviour
@@ -8,7 +6,8 @@ public class TeaTemperature : MonoBehaviour
     [Header("Ustawienia temperatury")]
     public float maxTemperature = 100f;
     private float currentTemperature;
-    public float coolingRate = 2f; // Ile stopni na sekundę traci herbata
+    public float coolingRate = 2f; // Podstawowe tempo stygnięcia
+    private float speedMultiplier = 1f; // Mnożnik poziomu trudności
 
     [Header("Elementy UI")]
     public Image fillImage;
@@ -22,28 +21,37 @@ public class TeaTemperature : MonoBehaviour
     {
         if (currentTemperature > 0)
         {
-            // Logika stygnięcia: T_nowa = T_stara - (tempo * czas)
-            currentTemperature -= coolingRate * Time.deltaTime;
+            // Herbata stygnie szybciej w zależności od poziomu (speedMultiplier)
+            currentTemperature -= coolingRate * speedMultiplier * Time.deltaTime;
             UpdateUI();
         }
         else
         {
-            Debug.Log("Herbata wystygła! Koniec gry.");
             currentTemperature = 0;
-            // Tutaj możesz wywołać zdarzenie końca gry
+            // GameManager w swojej pętli Update wykryje, że jest 0 i skończy grę.
         }
     }
 
     void UpdateUI()
     {
-        // Obliczamy stosunek temperatury (wartość od 0 do 1)
         float ratio = currentTemperature / maxTemperature;
-
-        // Aktualizujemy wysokość paska
-        fillImage.fillAmount = ratio;
+        if (fillImage != null) fillImage.fillAmount = ratio;
     }
 
-    // Tę funkcję możesz wywołać ze skryptu Roksany, gdy gracz znajdzie parę!
+    // Pozwala GameManagerowi sprawdzić, czy jeszcze gramy
+    public float GetCurrentTemperature()
+    {
+        return currentTemperature;
+    }
+
+    // Wywoływane przez GameManager przy każdej nowej planszy
+    public void SetSpeedMultiplier(float newMultiplier)
+    {
+        speedMultiplier = newMultiplier;
+        Debug.Log("Herbata stygnie teraz z prędkością: x" + speedMultiplier);
+    }
+
+    // Dodaje temperaturę po znalezieniu pary
     public void ReheatTea(float amount)
     {
         currentTemperature = Mathf.Clamp(currentTemperature + amount, 0, maxTemperature);

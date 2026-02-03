@@ -17,10 +17,7 @@ public class GridGenerator : MonoBehaviour
     public RectTransform gridContainer;
     public List<GameObject> cardPrefabs; // Tu przeciągnij swoje warianty (Matcha, Sencha itd.)
 
-    void Start()
-    {
-        GenerateGrid();
-    }
+
 
     public void GenerateGrid()
     {

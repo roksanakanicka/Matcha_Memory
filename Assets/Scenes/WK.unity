@@ -1085,16 +1085,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a202354c3cb44724b9c6b2bc229b1894, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gridGenerator: {fileID: 1266189785}
+  teaTimer: {fileID: 574787336}
   matchEffectPrefab: {fileID: 1211011649579325516, guid: f33d6c66d30c42a4fbfcd33dfa80cef6,
     type: 3}
-  teaTimer: {fileID: 574787336}
-  gridContainer: {fileID: 1266189781}
   uiCamera: {fileID: 271201453}
   scoreText: {fileID: 1545959900}
   comboText: {fileID: 1295970695}
   pointsPerMatch: 100
   baseReheatAmount: 10
   waitTimeBeforeFlip: 0.8
+  speedIncreaseFactor: 0.2
   comboCount: 0
 --- !u!4 &1428638782
 Transform:

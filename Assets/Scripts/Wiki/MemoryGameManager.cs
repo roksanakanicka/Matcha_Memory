@@ -2,23 +2,27 @@
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
-using UnityEngine.SceneManagement; // DODANE: Wymagane do zmiany scen
+using UnityEngine.SceneManagement;
 
 public class MemoryGameManager : MonoBehaviour
 {
     public static MemoryGameManager instance;
 
-    public MatchEffectPlayer matchEffectPrefab;
+
+    public GridGenerator gridGenerator; // To pole MUSI być przypisane w Inspectorze!
     public TeaTemperature teaTimer;
-    public RectTransform gridContainer;
+
+    [Header("Efekty i UI")]
+    public MatchEffectPlayer matchEffectPrefab;
     public Camera uiCamera;
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI comboText;
 
-    [Header("Ustawienia")]
+    [Header("Ustawienia Arcade")]
     public int pointsPerMatch = 100;
-    public float baseReheatAmount = 10f;
+    public float baseReheatAmount = 12f;
     public float waitTimeBeforeFlip = 0.8f;
+    public float speedIncreaseFactor = 0.2f;
 
     private CardAnimation firstCard;
     private CardAnimation secondCard;
@@ -26,9 +30,9 @@ public class MemoryGameManager : MonoBehaviour
     private int currentScore = 0;
     public int comboCount = 0;
 
-    // DODANE: Zmienna do liczenia zebranych par
     private int pairsFound = 0;
     private int totalPairs;
+    private int boardLevel = 1;
 
     void Awake()
     {
@@ -38,8 +42,34 @@ public class MemoryGameManager : MonoBehaviour
 
     void Start()
     {
-        // Obliczamy ile par jest na stole (liczba dzieci w gridzie podzielona na 2)
-        totalPairs = gridContainer.childCount / 2;
+        // Sprawdzamy, czy przypisano generator w Inspectorze 
+        if (gridGenerator == null)
+        {
+            Debug.LogError("BŁĄD: Nie przypisano GridGeneratora do MemoryGameManager!");
+            return;
+        }
+        StartCoroutine(PrepareNextBoard());
+    }
+
+    void Update()
+    {
+        if (teaTimer != null && teaTimer.GetCurrentTemperature() <= 0)
+        {
+            GameOver();
+        }
+    }
+
+    void InitializeBoard()
+    {
+        // Pobieramy liczbę par bezpośrednio z ustawień generatora [1]
+        totalPairs = (gridGenerator.rows * gridGenerator.columns) / 2;
+        pairsFound = 0;
+
+        if (teaTimer != null)
+        {
+            float newMultiplier = 1f + ((boardLevel - 1) * speedIncreaseFactor);
+            teaTimer.SetSpeedMultiplier(newMultiplier);
+        }
     }
 
     public void OnCardClicked(CardAnimation card)
@@ -79,14 +109,14 @@ public class MemoryGameManager : MonoBehaviour
     {
         comboCount++;
         currentScore += (int)(pointsPerMatch * (1f + (comboCount / 10f)));
-        pairsFound++; // DODANE: Zwiększamy licznik zebranych par
+        pairsFound++;
 
         if (AudioManager.instance != null) AudioManager.instance.PlayMatch();
         if (teaTimer != null) teaTimer.ReheatTea(baseReheatAmount * (1f + (comboCount / 5f)));
 
         UpdateUI();
 
-        if (matchEffectPrefab != null && gridContainer != null && uiCamera != null)
+        if (matchEffectPrefab != null)
         {
             SpawnVFXAtCard(firstCard);
             SpawnVFXAtCard(secondCard);
@@ -94,38 +124,45 @@ public class MemoryGameManager : MonoBehaviour
 
         StartCoroutine(HideCardsWithCanvasGroup(firstCard, secondCard));
 
-        // DODANE: Sprawdzanie czy to była ostatnia para
         if (pairsFound >= totalPairs)
         {
-            GameOver(true);
+            boardLevel++;
+            StartCoroutine(PrepareNextBoard());
         }
     }
 
-    // DODANE: Funkcja kończąca grę i zapisująca wynik
-    void GameOver(bool win)
+    public IEnumerator PrepareNextBoard()
     {
-        if (win)
-        {
-            // Zapisujemy ostateczny wynik do pamięci
-            PlayerPrefs.SetFloat("LastScore", currentScore);
+        isProcessing = true;
+        yield return new WaitForSeconds(1.0f);
 
-            // Przechodzimy do sceny rankingu
-            SceneManager.LoadScene("Oswiecenie");
-        }
+        // Wywołujemy generator (on sam wyczyści starą planszę) [1, 2]
+        gridGenerator.GenerateGrid();
+
+        // Czekamy klatkę, aby obiekty zdążyły się zainicjalizować
+        yield return new WaitForEndOfFrame();
+
+        InitializeBoard();
+        isProcessing = false;
+
+        if (boardLevel > 1 && comboText != null) comboText.text = "POZIOM " + boardLevel;
+    }
+
+    void GameOver()
+    {
+        PlayerPrefs.SetFloat("LastScore", currentScore);
+        SceneManager.LoadScene("Oswiecenie");
     }
 
     private void SpawnVFXAtCard(CardAnimation card)
     {
-        RectTransform canvasRect = gridContainer.parent as RectTransform;
+        // Korzystamy z gridContainer z generatora, aby nie dublować referencji
+        RectTransform canvasRect = gridGenerator.gridContainer.parent as RectTransform;
         GameObject eff = Instantiate(matchEffectPrefab.gameObject, canvasRect);
-
         Vector2 localPoint;
         RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect,
             uiCamera.WorldToScreenPoint(card.transform.position), uiCamera, out localPoint);
-
         eff.GetComponent<RectTransform>().anchoredPosition = localPoint;
-        eff.transform.localScale = Vector3.one;
-        eff.transform.localPosition = new Vector3(eff.transform.localPosition.x, eff.transform.localPosition.y, -2f);
         Destroy(eff, 2f);
     }
 
@@ -134,7 +171,6 @@ public class MemoryGameManager : MonoBehaviour
         yield return new WaitForSeconds(0.5f);
         CanvasGroup cg1 = c1.GetComponent<CanvasGroup>();
         CanvasGroup cg2 = c2.GetComponent<CanvasGroup>();
-
         if (cg1 != null && cg2 != null)
         {
             cg1.alpha = 0; cg1.blocksRaycasts = false;

@@ -9,6 +9,7 @@ public class MenuManager : MonoBehaviour
     public void StartGame()
     {
         // Sprawdzamy co wpisał gracz
+        // To zadziała TYLKO w scenie menu (MB), gdzie jest pole nickInput
         string nick = nickInput.text;
 
         if (string.IsNullOrWhiteSpace(nick))
@@ -16,10 +17,17 @@ public class MenuManager : MonoBehaviour
             nick = "Bezimienny";
         }
 
-        // POPRAWIONO: Klucz zmieniony na "CurrentPlayerNick" dla spójności z rankingiem
+        // Zapisujemy nick dla rankingu
         PlayerPrefs.SetString("CurrentPlayerNick", nick);
 
         SceneManager.LoadScene("WK");
+    }
+
+    // TA FUNKCJA NAPRAWI BŁĄD NA SCENIE OŚWIECENIE
+    public void BackToMenu()
+    {
+        // Po prostu ładujemy menu, nie sprawdzając pola tekstowego
+        SceneManager.LoadScene("MB");
     }
 
     public void ExitGame()

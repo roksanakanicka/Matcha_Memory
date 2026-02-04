@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public class RankingManager : MonoBehaviour
 {
     public TextMeshProUGUI rankingText;
-    private const int rankingSize = 3;
+    private const int rankingSize = 5;
 
     void Start()
     {
@@ -49,7 +49,7 @@ public class RankingManager : MonoBehaviour
 
     void WyswietlRanking()
     {
-        rankingText.text = "<size=120%>RANKING TOP 3</size>\n\n";
+        rankingText.text = "<size=120%>RANKING TOP 5</size>\n\n";
         for (int i = 0; i < rankingSize; i++)
         {
             if (PlayerPrefs.HasKey("RankScore" + i))

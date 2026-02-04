@@ -61,7 +61,7 @@ PrefabInstance:
     - target: {fileID: 4875415486735296482, guid: 497ad1ed8778ef643983c9eb198c97d9,
         type: 3}
       propertyPath: m_SizeDelta.y
-      value: 150
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 4875415486735296482, guid: 497ad1ed8778ef643983c9eb198c97d9,
         type: 3}
@@ -126,7 +126,7 @@ PrefabInstance:
     - target: {fileID: 4875415486735296509, guid: 497ad1ed8778ef643983c9eb198c97d9,
         type: 3}
       propertyPath: scaleFactor
-      value: 1
+      value: 1.2
       objectReference: {fileID: 0}
     - target: {fileID: 5401167685931603016, guid: 497ad1ed8778ef643983c9eb198c97d9,
         type: 3}
